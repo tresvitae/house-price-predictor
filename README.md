@@ -13,10 +13,14 @@ Check out the [MLOps Bootcamp at School of DevOps](https://schoolofdevops.com) t
 
 ```
 house-price-predictor/
+├── .github/workflows/      # Continuous Integretion Process
 ├── configs/                # YAML-based configuration for models
 ├── data/                   # Raw and processed datasets
 ├── deployment/
-│   └── mlflow/             # Docker Compose setup for MLflow
+│   ├── mlflow/             # Docker Compose setup for MLflow
+|   ├── model_service/      # Docker Compose setup for Model and Streamlit Apps
+|   └── kubernetes/         # Kubernetes Architecture for Continuous Development
+|── model_app/              # FE FastAPI app
 ├── models/                 # Trained models and preprocessors
 ├── notebooks/              # Optional Jupyter notebooks for experimentation
 ├── src/
@@ -24,6 +28,7 @@ house-price-predictor/
 │   ├── features/           # Feature engineering pipeline
 │   ├── models/             # Model training and evaluation
 ├── requirements.txt        # Python dependencies
+|── streamlit_app           # BE streamlit app
 └── README.md               # You’re here!
 ```
 
