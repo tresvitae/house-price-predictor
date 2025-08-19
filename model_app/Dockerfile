@@ -2,13 +2,17 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+# Install curl for health checks
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
 # Copy requirements first for better caching
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy Python files (exclude README.md)
 COPY *.py .
-COPY ../models/trained/*.pkl models/trained/
+# Models will be mounted as volume instead of copying
+#COPY ../models/trained/*.pkl models/trained/
 
 EXPOSE 8000
 

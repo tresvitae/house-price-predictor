@@ -1,0 +1,35 @@
+services:
+  model:
+    build:
+      context: ../../model_app
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - ENV=production
+    volumes:
+      - ../../models:/app/models
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  streamlit:
+    build:
+      context: ../../streamlit_app
+      dockerfile: Dockerfile
+    ports:
+      - "8501:8501"
+    environment:
+      - API_URL=http://model:8000
+    restart: unless-stopped
+    depends_on:
+      model:
+        condition: service_healthy
+
+networks:
+  default:
+    driver: bridge
