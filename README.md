@@ -36,7 +36,7 @@ To begin, ensure the following tools are installed on your system:
 - [Python 3.11](https://www.python.org/downloads/)
 - [Git](https://git-scm.com/)
 - [Visual Studio Code](https://code.visualstudio.com/) or your preferred editor
-- [UV – Python package and environment manager](https://github.com/astral-sh/uv)
+- [Pip – Python package installer](https://pip.pypa.io/en/stable/)
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) **or** [Podman Desktop](https://podman-desktop.io/)
 
 ---
@@ -53,17 +53,17 @@ To begin, ensure the following tools are installed on your system:
    cd house-price-predictor
    ```
 
-3. **Setup Python Virtual Environment using UV:**
+3. **Setup Python Virtual Environment using venv:**
 
    ```bash
-   uv venv --python python3.11
+   python3.11 -m venv .venv
    source .venv/bin/activate
    ```
 
 4. **Install dependencies:**
 
    ```bash
-   uv pip install -r requirements.txt
+   pip install -r requirements.txt
    ```
 
 ---
@@ -94,9 +94,7 @@ Access the MLflow UI at [http://localhost:5555](http://localhost:5555)
 If you prefer an interactive experience, launch JupyterLab with:
 
 ```bash
-uv python -m jupyterlab
-# or
-python -m jupyterlab
+python3.11 -m jupyterlab
 ```
 
 ---
@@ -108,7 +106,7 @@ python -m jupyterlab
 Clean and preprocess the raw housing dataset:
 
 ```bash
-python src/data/run_processing.py   --input data/raw/house_data.csv   --output data/processed/cleaned_house_data.csv
+python3.11 src/data/run_processing.py   --input data/raw/house_data.csv   --output data/processed/cleaned_house_data.csv
 ```
 
 ---
@@ -118,7 +116,7 @@ python src/data/run_processing.py   --input data/raw/house_data.csv   --output d
 Apply transformations and generate features:
 
 ```bash
-python src/features/engineer.py   --input data/processed/cleaned_house_data.csv   --output data/processed/featured_house_data.csv   --preprocessor models/trained/preprocessor.pkl
+python3.11 src/features/engineer.py   --input data/processed/cleaned_house_data.csv   --output data/processed/featured_house_data.csv   --preprocessor models/trained/preprocessor.pkl
 ```
 
 ---
@@ -128,7 +126,7 @@ python src/features/engineer.py   --input data/processed/cleaned_house_data.csv 
 Train your model and log everything to MLflow:
 
 ```bash
-python src/models/train_model.py   --config configs/model_config.yaml   --data data/processed/featured_house_data.csv   --models-dir models   --mlflow-tracking-uri http://localhost:5555
+python3.11 src/models/train_model.py   --config configs/model_config.yaml   --data data/processed/featured_house_data.csv   --models-dir models   --mlflow-tracking-uri http://localhost:5555
 ```
 
 ---
