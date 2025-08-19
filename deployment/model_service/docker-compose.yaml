@@ -3,6 +3,7 @@ services:
     build:
       context: ../../model_app
       dockerfile: Dockerfile
+    image: ${DOCKERHUB_USERNAME}/house-price-api:latest
     ports:
       - "8000:8000"
     environment:
@@ -21,6 +22,7 @@ services:
     build:
       context: ../../streamlit_app
       dockerfile: Dockerfile
+    image: ${DOCKERHUB_USERNAME}/house-price-streamlit:latest
     ports:
       - "8501:8501"
     environment:
