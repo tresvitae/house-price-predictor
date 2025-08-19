@@ -3,12 +3,12 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Copy requirements first for better caching
-COPY src/api/requirements.txt .
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy Python files (exclude README.md)
-COPY src/api/*.py .
-COPY models/trained/*.pkl models/trained/
+COPY *.py .
+COPY ../models/trained/*.pkl models/trained/
 
 EXPOSE 8000
 
