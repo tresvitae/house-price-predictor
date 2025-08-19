@@ -41,3 +41,8 @@ dist/
 # Ignore all .pkl files (models, preprocessors, etc.)
 *.pkl
 
+# Ignore processed data
+data/processed/*.csv
+
+# Model configuration
+configs/model_config.yaml
