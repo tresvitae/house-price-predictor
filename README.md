@@ -141,18 +141,30 @@ python3.10 src/models/train_model.py \
 
 ## Building FastAPI and Streamlit 
 
-The code for both the apps are available in `src/api` and `streamlit_app` already. To build and launch these apps 
+The code for both the apps are available in `model_app/` (FastAPI) and `streamlit_app/` (Streamlit). 
 
-  * Add a  `Dockerfile` in the root of the source code for building FastAPI  
-  * Add `streamlit_app/Dockerfile` to package and build the Streamlit app  
-  * Add `docker-compose.yaml` in the root path to launch both these apps. be sure to provide `API_URL=http://fastapi:8000` in the streamlit app's environment. 
+### Building and Launching
 
+1. **Build and launch both services:**
+   ```bash
+   docker compose -f deployment/model_service/docker-compose.yaml up -d --build
+   ```
 
+2. **Verify services are running:**
+   ```bash
+   docker compose -f deployment/model_service/docker-compose.yaml ps
+   ```
 Once you have launched both the apps, you should be able to access streamlit web ui and make predictions. 
 
-You could also test predictions with FastAPI directly using 
+3. **Access the applications:**
+   - **FastAPI API Documentation**: [http://localhost:8000/docs](http://localhost:8000/docs)
+   - **Streamlit Web UI**: [http://localhost:8501](http://localhost:8501)
 
-```
+
+### 🔍 Testing Connectivity
+
+**Test API endpoint directly:**
+```bash
 curl -X POST "http://localhost:8000/predict" \
 -H "Content-Type: application/json" \
 -d '{
@@ -161,9 +173,51 @@ curl -X POST "http://localhost:8000/predict" \
   "bathrooms": 2,
   "location": "suburban",
   "year_built": 2000,
-  "condition": fair
+  "condition": "Fair"
 }'
+```
 
+**Test inter-service connectivity:**
+
+1. **Streamlit → FastAPI connection:**
+   ```bash
+   docker compose -f deployment/model_service/docker-compose.yaml exec streamlit \
+   python -c "import requests; print('FastAPI Status:', requests.get('http://fastapi:8000/health', timeout=5).status_code)"
+   ```
+
+2. **FastAPI service health:**
+   ```bash
+   docker compose -f deployment/model_service/docker-compose.yaml exec fastapi \
+   curl -f http://localhost:8000/health
+   ```
+
+3. **Network debugging (if needed):**
+   ```bash
+   # Access FastAPI container shell
+   docker compose -f deployment/model_service/docker-compose.yaml exec fastapi /bin/bash
+   
+   # Inside container - test network connectivity
+   ping streamlit
+   nslookup streamlit
+   curl http://streamlit:8501
+   netstat -tlnp
+   ```
+
+### 🛠️ Development Workflow
+```bash
+# Stop services
+docker compose -f deployment/model_service/docker-compose.yaml down
+
+# Rebuild and restart
+docker compose -f deployment/model_service/docker-compose.yaml up -d --build
+
+# View logs
+docker compose -f deployment/model_service/docker-compose.yaml logs -f
+```
+
+**Clean up:**
+```bash
+docker compose -f deployment/model_service/docker-compose.yaml down -v
 ```
 
 Be sure to replace `http://localhost:8000/predict` with actual endpoint based on where its running. 
