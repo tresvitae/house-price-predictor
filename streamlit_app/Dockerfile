@@ -12,8 +12,8 @@ COPY .streamlit .streamlit/
 
 EXPOSE 8501
 
-# Health check should go here - after EXPOSE, before CMD
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:8501/_stcore/health || exit 1
+# Health check using Python requests (already installed)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+  CMD python -c "import requests; requests.get('http://localhost:8501/', timeout=5)" || exit 1
 
 CMD ["streamlit", "run", "app.py", "--server.address=0.0.0.0"]
