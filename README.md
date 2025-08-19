@@ -155,13 +155,26 @@ The code for both the apps are available in `model_app/` (FastAPI) and `streamli
    docker compose -f deployment/model_service/docker-compose.yaml up -d --build
    ```
 
-2. **Verify services are running:**
+2. **Verify services are running and images are pushed:**
    ```bash
+   # Check local images
+   docker images | grep house-price
+
+   # Verify on DockerHub (or check your DockerHub dashboard)
+   docker search your-dockerhub-username/house-price-api
+
+   # Check if running
    docker compose -f deployment/model_service/docker-compose.yaml ps
    ```
-Once you have launched both the apps, you should be able to access streamlit web ui and make predictions. 
 
-3. **Access the applications:**
+Once you have launched both the apps, you should be able to access streamlit web ui and make predictions. 
+3. **Push the built images**
+```bash
+export DOCKERHUB_USERNAME=your-dockerhub-username
+docker compose -f deployment/model_service/docker-compose.yaml push
+```
+
+4. **Access the applications:**
    - **FastAPI API Documentation**: [http://localhost:8000/docs](http://localhost:8000/docs)
    - **Streamlit Web UI**: [http://localhost:8501](http://localhost:8501)
 
