@@ -57,8 +57,8 @@ graph TD
 **Purpose**: Ensures code quality and security before any processing begins.
 
 **Steps**:
-- **Dependency Scanning**: Uses `safety` to check for known vulnerabilities
-- **Code Security Analysis**: `bandit` scans for security issues in Python code
+- **Dependency Scanning**: Uses `safety check --output json` to scan for known vulnerabilities
+- **Code Security Analysis**: `bandit` scans for security issues in Python code  
 - **Code Quality**: `flake8` linting and `mypy` type checking
 - **Unit Tests**: `pytest` with coverage reporting
 - **Artifact Storage**: Security reports saved for review
@@ -84,13 +84,19 @@ graph TD
 - **MLflow Setup**: Containerized experiment tracking server
 - **Configuration Validation**: Ensures model config exists
 - **Model Training**: Executes training with MLflow logging
-- **Performance Testing**: Validates model files and performance
+- **Performance Testing**: Validates model files with recursive directory search
 - **Drift Detection**: Statistical analysis for data quality issues
-- **Model Validation**: Ensures training outputs are valid
+- **Model Validation**: Enhanced validation with detailed debugging output
+- **Model Artifact Upload**: Trained models saved for deployment
 
 **Technologies**: `MLflow`, `scikit-learn`, `Docker`
 **Dependencies**: Requires data processing to complete
 **Output**: Trained model artifacts
+
+**Enhanced Features**:
+- **Recursive Model Search**: Searches all subdirectories for `.pkl` files
+- **Detailed Debugging**: Shows directory structure when validation fails
+- **Comprehensive Validation**: Counts and verifies all model artifacts
 
 #### 4. 🐳 Build & Publish
 **Purpose**: Containerizes the model API and deploys to registry.
@@ -169,7 +175,7 @@ graph TD
 
 **Steps**:
 - **Dependency Installation**: Streamlit and testing tools
-- **Vulnerability Scanning**: `safety` check on Streamlit dependencies
+- **Vulnerability Scanning**: `safety check --output json` on Streamlit dependencies
 - **Security Analysis**: `bandit` scan of Streamlit code
 - **Code Quality**: Linting and type checking
 - **Structure Validation**: Ensures required files exist
@@ -190,7 +196,7 @@ graph TD
   - Container startup verification
 - **Performance Testing**:
   - Memory usage monitoring
-  - Response time validation
+  - Response time validation with `awk` for cross-platform compatibility
   - Resource consumption analysis
 
 **Technologies**: `Docker Buildx`, `Anchore`, `Streamlit`
@@ -211,6 +217,8 @@ graph TD
 - **Multi-layer scanning**: Dependencies, code, and containers
 - **Fail-fast validation**: Stop pipeline on security issues
 - **Comprehensive reporting**: All findings preserved as artifacts
+- **Cross-platform compatibility**: Uses `awk` instead of `bc` for better Ubuntu runner support
+- **Enhanced error handling**: `continue-on-error` for artifact uploads to prevent failures
 
 ### Quality Assurance
 - **Automated testing**: Unit, integration, and performance tests
@@ -288,6 +296,8 @@ git push origin v1.2.3
 **Security Scan Failures**:
 ```bash
 # Check security reports artifacts
+# Review safety scan results with correct syntax
+safety check --output json > safety-report.json
 # Update dependencies if vulnerabilities found
 pip install --upgrade package-name
 ```
@@ -389,9 +399,11 @@ Each workflow produces artifacts available for download:
 ### Common Issues
 
 1. **"No model files found" Error**:
-   - Ensure `configs/model_config.yaml` exists
-   - Check model training script execution
-   - Verify MLflow connectivity
+   - Ensure `configs/model_config.yaml` exists and has correct structure
+   - Check model training script execution logs
+   - Verify MLflow connectivity and server startup
+   - Review enhanced debugging output showing directory structure
+   - Confirm model files are saved in expected locations
 
 2. **Docker Build Context Issues**:
    - Verify Dockerfile location matches workflow
