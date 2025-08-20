@@ -40,8 +40,7 @@ jobs:
       run: |
         echo "Scanning Streamlit dependencies for vulnerabilities..."
         cd streamlit_app
-        safety check --json --output streamlit-safety-report.json || true
-        mv streamlit-safety-report.json ../
+        safety check --output json > ../streamlit-safety-report.json || true
         
     - name: Security scan - Code analysis
       run: |
