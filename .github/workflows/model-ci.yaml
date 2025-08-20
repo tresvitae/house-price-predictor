@@ -1,13 +1,87 @@
-name: Streamlit CI
+name: Streamlit MLOps Pipeline
 
 on:
   push:
     paths:
       - 'streamlit_app/**'
+    branches: [ main ]
+    tags: [ 'v*.*.*' ]
+  pull_request:
+    paths:
+      - 'streamlit_app/**'
+    branches: [ main ]
   workflow_dispatch:
 
+env:
+  PYTHON_VERSION: '3.10'
+  REGISTRY: docker.io
+
 jobs:
+  security-and-quality:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+        
+    - name: Install Streamlit dependencies
+      run: |
+        python -m pip install --upgrade pip
+        cd streamlit_app
+        pip install -r requirements.txt
+        pip install safety bandit pytest flake8 mypy streamlit-testing
+        
+    - name: Security scan - Dependencies
+      run: |
+        echo "Scanning Streamlit dependencies for vulnerabilities..."
+        cd streamlit_app
+        safety check --json --output ../streamlit-safety-report.json || true
+        
+    - name: Security scan - Code analysis
+      run: |
+        echo "Running Bandit security analysis on Streamlit app..."
+        bandit -r streamlit_app/ -f json -o streamlit-bandit-report.json || true
+        
+    - name: Code quality - Linting
+      run: |
+        echo "Running flake8 linting on Streamlit app..."
+        flake8 streamlit_app/ --max-line-length=88 --extend-ignore=E203,W503 || true
+        
+    - name: Code quality - Type checking
+      run: |
+        echo "Running mypy type checking on Streamlit app..."
+        mypy streamlit_app/ --ignore-missing-imports || true
+        
+    - name: Streamlit app validation
+      run: |
+        echo "Validating Streamlit app structure..."
+        if [ ! -f "streamlit_app/app.py" ]; then
+          echo "Error: Main Streamlit app file not found"
+          exit 1
+        fi
+        if [ ! -f "streamlit_app/requirements.txt" ]; then
+          echo "Error: Requirements file not found"
+          exit 1
+        fi
+        echo "Streamlit app validation passed"
+        
+    - name: Upload security reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: streamlit-security-reports
+        path: |
+          streamlit-safety-report.json
+          streamlit-bandit-report.json
+        
   build-and-push:
+    needs: security-and-quality
     runs-on: ubuntu-latest
 
     steps:
@@ -20,13 +94,111 @@ jobs:
       - name: Log in to DockerHub Container Registry
         uses: docker/login-action@v3
         with:
-          registry: docker.io
+          registry: ${{ env.REGISTRY }}
           username: ${{ vars.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Generate version tags
+        id: meta
+        run: |
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            # For tag pushes, use the tag name
+            VERSION="${{ github.ref_name }}"
+            echo "tags=${{ env.REGISTRY }}/${{ vars.DOCKERHUB_USERNAME }}/streamlit:${VERSION},${{ env.REGISTRY }}/${{ vars.DOCKERHUB_USERNAME }}/streamlit:latest" >> $GITHUB_OUTPUT
+          else
+            # For branch pushes, use branch name and commit SHA
+            BRANCH_NAME=$(echo "${{ github.ref_name }}" | tr '/' '-')
+            SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-8)
+            echo "tags=${{ env.REGISTRY }}/${{ vars.DOCKERHUB_USERNAME }}/streamlit:${BRANCH_NAME}-${SHORT_SHA},${{ env.REGISTRY }}/${{ vars.DOCKERHUB_USERNAME }}/streamlit:latest" >> $GITHUB_OUTPUT
+          fi
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: ./streamlit_app
+          file: ./streamlit_app/Dockerfile
           push: true
-          tags: docker.io/${{ vars.DOCKERHUB_USERNAME }}/streamlit:latest
+          tags: ${{ steps.meta.outputs.tags }}
+          platforms: linux/amd64,linux/arm64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          
+      - name: Run container security scan
+        uses: anchore/scan-action@v3
+        with:
+          image: ${{ env.REGISTRY }}/${{ vars.DOCKERHUB_USERNAME }}/streamlit:latest
+          fail-build: false
+          
+      - name: Upload container scan results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: streamlit-container-scan-results
+          path: |
+            anchore-reports/
+            
+      - name: Integration test - Streamlit app
+        run: |
+          echo "Starting Streamlit integration tests..."
+          # Pull the built image
+          docker pull ${{ env.REGISTRY }}/${{ vars.DOCKERHUB_USERNAME }}/streamlit:latest
+          
+          # Start the Streamlit container
+          docker run -d --name test-streamlit -p 8501:8501 \
+            -e MODEL_API_URL=http://host.docker.internal:8000 \
+            ${{ env.REGISTRY }}/${{ vars.DOCKERHUB_USERNAME }}/streamlit:latest
+          
+          # Wait for container to be ready
+          echo "Waiting for Streamlit to start..."
+          for i in {1..30}; do
+            if curl -f http://localhost:8501/_stcore/health 2>/dev/null; then
+              echo "Streamlit is ready!"
+              break
+            fi
+            if [ $i -eq 30 ]; then
+              echo "Streamlit failed to start"
+              docker logs test-streamlit
+              exit 1
+            fi
+            sleep 5
+          done
+          
+          # Test Streamlit health
+          curl -f http://localhost:8501/_stcore/health || exit 1
+          
+          # Test main page loads
+          curl -f http://localhost:8501/ || exit 1
+          
+          echo "Streamlit integration tests passed!"
+          
+          # Cleanup
+          docker stop test-streamlit
+          docker rm test-streamlit
+          
+      - name: Performance test - Container metrics
+        run: |
+          echo "Running container performance tests..."
+          # Start container for performance testing
+          docker run -d --name perf-test-streamlit -p 8502:8501 \
+            ${{ env.REGISTRY }}/${{ vars.DOCKERHUB_USERNAME }}/streamlit:latest
+          
+          sleep 10
+          
+          # Check memory usage
+          MEMORY_USAGE=$(docker stats perf-test-streamlit --no-stream --format "table {{.MemUsage}}" | tail -1)
+          echo "Memory usage: $MEMORY_USAGE"
+          
+          # Check if container is responsive
+          RESPONSE_TIME=$(curl -o /dev/null -s -w '%{time_total}' http://localhost:8502/_stcore/health)
+          echo "Response time: $RESPONSE_TIME seconds"
+          
+          # Basic performance validation (response time under 5 seconds)
+          if (( $(echo "$RESPONSE_TIME > 5.0" | bc -l) )); then
+            echo "Warning: Response time is slow ($RESPONSE_TIME seconds)"
+          else
+            echo "Performance test passed: Response time $RESPONSE_TIME seconds"
+          fi
+          
+          # Cleanup
+          docker stop perf-test-streamlit
+          docker rm perf-test-streamlit
