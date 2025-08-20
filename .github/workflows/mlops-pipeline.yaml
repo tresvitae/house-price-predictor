@@ -305,6 +305,25 @@ jobs:
         echo "Models directory structure:"
         find models -type f -name "*.pkl" || echo "No .pkl files found"
         
+        # Check for the specific model file that inference.py expects
+        if [ ! -f "models/trained/house_price_model.pkl" ]; then
+          echo "Error: house_price_model.pkl not found"
+          echo "Available model files:"
+          ls -la models/trained/ || true
+          exit 1
+        fi
+        
+        if [ ! -f "models/trained/preprocessor.pkl" ]; then
+          echo "Error: preprocessor.pkl not found"
+          echo "Available model files:"
+          ls -la models/trained/ || true
+          exit 1
+        fi
+        
+        echo "Required model files found:"
+        ls -la models/trained/house_price_model.pkl
+        ls -la models/trained/preprocessor.pkl
+        
     - name: Validate artifacts
       run: |
         if [ ! -d "models" ] || [ -z "$(ls -A models 2>/dev/null)" ]; then
@@ -313,6 +332,10 @@ jobs:
         fi
         if [ ! -f "models/trained/preprocessor.pkl" ]; then
           echo "Error: Preprocessor not found"
+          exit 1
+        fi
+        if [ ! -f "models/trained/house_price_model.pkl" ]; then
+          echo "Error: house_price_model.pkl not found"
           exit 1
         fi
         echo "Artifact validation passed"
@@ -356,17 +379,25 @@ jobs:
           
     - name: Run container security scan
       uses: anchore/scan-action@v3
+      id: scan
       with:
         image: ${{ env.REGISTRY }}/${{ vars.DOCKERHUB_USERNAME }}/house-price-model:latest
         fail-build: false
+        output-format: sarif
         
     - name: Upload container scan results
       uses: actions/upload-artifact@v4
-      if: always()
+      if: always() && steps.scan.outputs.sarif
       with:
         name: container-scan-results
-        path: |
-          anchore-reports/
+        path: ${{ steps.scan.outputs.sarif }}
+        
+    - name: Upload Anchore scan SARIF report
+      uses: github/codeql-action/upload-sarif@v3
+      if: always() && steps.scan.outputs.sarif
+      with:
+        sarif_file: ${{ steps.scan.outputs.sarif }}
+        category: "Container Security Scan"
           
     - name: Integration test
       run: |
