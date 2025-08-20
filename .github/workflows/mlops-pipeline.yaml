@@ -371,18 +371,44 @@ jobs:
         # Start the container
         docker run -d --name test-api -p 8000:8000 ${{ env.REGISTRY }}/${{ vars.DOCKERHUB_USERNAME }}/house-price-model:latest
         
-        # Wait for container to be ready
-        sleep 10
-        
-        # Test health endpoint
-        curl -f http://localhost:8000/health || exit 1
+        # Wait for container to be ready with retry logic
+        echo "Waiting for API to be ready..."
+        for i in {1..30}; do
+          if curl -f http://localhost:8000/health 2>/dev/null; then
+            echo "API is ready!"
+            break
+          fi
+          if [ $i -eq 30 ]; then
+            echo "API failed to start after 150 seconds"
+            echo "Container logs:"
+            docker logs test-api
+            docker stop test-api
+            docker rm test-api
+            exit 1
+          fi
+          echo "Attempt $i/30: API not ready, waiting 5 seconds..."
+          sleep 5
+        done
         
         # Test prediction endpoint
-        curl -f -X POST http://localhost:8000/predict \
+        echo "Testing prediction endpoint..."
+        response=$(curl -f -X POST http://localhost:8000/predict \
           -H "Content-Type: application/json" \
-          -d '{"sqft": 1500, "bedrooms": 3, "bathrooms": 2, "location": "suburban", "year_built": 2000, "condition": "Fair"}' || exit 1
-          
-        echo "Integration tests passed!"
+          -d '{"sqft": 1500, "bedrooms": 3, "bathrooms": 2, "location": "suburban", "year_built": 2000, "condition": "Fair"}')
+        
+        echo "Prediction response: $response"
+        
+        # Verify response contains expected fields
+        if echo "$response" | grep -q "prediction"; then
+          echo "Integration tests passed!"
+        else
+          echo "Error: Prediction response does not contain expected 'prediction' field"
+          echo "Container logs:"
+          docker logs test-api
+          docker stop test-api
+          docker rm test-api
+          exit 1
+        fi
         
         # Cleanup
         docker stop test-api
