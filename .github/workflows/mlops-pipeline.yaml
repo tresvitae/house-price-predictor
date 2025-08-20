@@ -299,6 +299,12 @@ jobs:
         name: preprocessor
         path: models/trained/
         
+    - name: Copy models to build context
+      run: |
+        # Models are already downloaded to the correct location
+        echo "Models directory structure:"
+        find models -type f -name "*.pkl" || echo "No .pkl files found"
+        
     - name: Validate artifacts
       run: |
         if [ ! -d "models" ] || [ -z "$(ls -A models 2>/dev/null)" ]; then
@@ -340,7 +346,7 @@ jobs:
     - name: Build and push Docker image
       uses: docker/build-push-action@v5
       with:
-          context: ./model_app
+          context: .
           file: ./model_app/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
