@@ -203,6 +203,54 @@ kubectl -n cattle-system port-forward service/rancher 8443:443
 
 Then access Rancher at: https://localhost:8443
 
+## Cleanup and Cluster Management
+
+### Delete Applications
+
+To remove the deployed applications while keeping the cluster:
+
+```bash
+# Delete individual deployments and services
+kubectl delete -f model-deployment.yaml
+kubectl delete -f streamlit-deployment.yaml
+
+# Or delete by label selectors
+kubectl delete deployment,service -l app=model
+kubectl delete deployment,service -l app=streamlit
+```
+
+### Delete the Entire Cluster
+
+When you're completely done with the cluster, you can delete it entirely:
+
+```bash
+# Delete the Kind cluster
+kind delete cluster
+
+# Or delete a specific named cluster
+kind delete cluster --name <cluster-name>
+
+# List all Kind clusters before deletion
+kind get clusters
+```
+
+### Reset Environment
+
+To completely clean up your environment:
+
+```bash
+# Delete the cluster
+kind delete cluster
+
+# Remove unused Docker images (optional)
+docker system prune -a
+
+# Remove unused Docker volumes (optional)  
+docker volume prune
+```
+
+**Note**: Deleting the cluster will remove all deployments, services, and data. Make sure to backup any important data before deletion.
+
 ## Architecture Overview
 
 ```
