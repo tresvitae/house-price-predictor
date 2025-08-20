@@ -34,14 +34,14 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         cd streamlit_app
-        pip install -r requirements.txt
-        pip install safety bandit pytest flake8 mypy streamlit-testing
+        pip install -r requirements.txt safety bandit pytest flake8 mypy requests
         
     - name: Security scan - Dependencies
       run: |
         echo "Scanning Streamlit dependencies for vulnerabilities..."
         cd streamlit_app
-        safety check --json --output ../streamlit-safety-report.json || true
+        safety check --json --output streamlit-safety-report.json || true
+        mv streamlit-safety-report.json ../
         
     - name: Security scan - Code analysis
       run: |
@@ -79,6 +79,7 @@ jobs:
         path: |
           streamlit-safety-report.json
           streamlit-bandit-report.json
+      continue-on-error: true
         
   build-and-push:
     needs: security-and-quality
@@ -136,6 +137,7 @@ jobs:
           name: streamlit-container-scan-results
           path: |
             anchore-reports/
+        continue-on-error: true
             
       - name: Integration test - Streamlit app
         run: |
@@ -193,7 +195,7 @@ jobs:
           echo "Response time: $RESPONSE_TIME seconds"
           
           # Basic performance validation (response time under 5 seconds)
-          if (( $(echo "$RESPONSE_TIME > 5.0" | bc -l) )); then
+          if (( $(awk "BEGIN {print ($RESPONSE_TIME > 5.0)}") )); then
             echo "Warning: Response time is slow ($RESPONSE_TIME seconds)"
           else
             echo "Performance test passed: Response time $RESPONSE_TIME seconds"
