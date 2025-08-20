@@ -35,7 +35,7 @@ jobs:
     - name: Security scan - Dependencies
       run: |
         echo "Scanning for known security vulnerabilities..."
-        safety check --json --output safety-report.json || true
+        safety check --output json > safety-report.json || true
         
     - name: Security scan - Code analysis
       run: |
@@ -188,10 +188,26 @@ jobs:
         # Load test data
         data = pd.read_csv('data/processed/featured_house_data.csv')
         
-        # Load model (check if model files exist)
-        model_files = [f for f in os.listdir('models') if f.endswith('.pkl')]
+        # Check for model files in models directory and subdirectories
+        model_files = []
+        for root, dirs, files in os.walk('models'):
+            for file in files:
+                if file.endswith('.pkl'):
+                    model_files.append(os.path.join(root, file))
+        
+        print(f'Found model files: {model_files}')
+        
         if not model_files:
             print('Error: No model files found')
+            # List contents of models directory for debugging
+            print('Contents of models directory:')
+            for root, dirs, files in os.walk('models'):
+                level = root.replace('models', '').count(os.sep)
+                indent = ' ' * 2 * level
+                print(f'{indent}{os.path.basename(root)}/')
+                subindent = ' ' * 2 * (level + 1)
+                for file in files:
+                    print(f'{subindent}{file}')
             exit(1)
         
         # Simple performance validation
@@ -230,10 +246,26 @@ jobs:
         
     - name: Validate trained model
       run: |
-        if [ ! -d "models" ] || [ -z "$(ls -A models 2>/dev/null)" ]; then
-          echo "Error: No model files were created"
+        echo "Validating trained model files..."
+        if [ ! -d "models" ]; then
+          echo "Error: models directory does not exist"
           exit 1
         fi
+        
+        echo "Contents of models directory:"
+        find models -type f -name "*.pkl" || true
+        
+        # Check for any model files recursively
+        MODEL_COUNT=$(find models -name "*.pkl" | wc -l)
+        if [ "$MODEL_COUNT" -eq 0 ]; then
+          echo "Error: No .pkl model files were created"
+          echo "Full directory structure:"
+          ls -la models/ || true
+          find models -type f || true
+          exit 1
+        fi
+        
+        echo "Found $MODEL_COUNT model file(s)"
         echo "Model training validation passed"
         
     - name: Upload trained model
