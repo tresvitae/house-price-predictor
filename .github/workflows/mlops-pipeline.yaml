@@ -14,12 +14,13 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
       
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v5
       with:
-        python-version: '3.11.9'
+        python-version: '3.10'
+        cache: 'pip'
         
     - name: Install dependencies
       run: |
@@ -33,6 +34,18 @@ jobs:
     - name: Engineer features
       run: |
         python src/features/engineer.py --input data/processed/cleaned_house_data.csv --output data/processed/featured_house_data.csv --preprocessor models/trained/preprocessor.pkl
+        
+    - name: Validate processed data
+      run: |
+        if [ ! -f "data/processed/featured_house_data.csv" ]; then
+          echo "Error: Featured data not created"
+          exit 1
+        fi
+        if [ ! -s "data/processed/featured_house_data.csv" ]; then
+          echo "Error: Featured data file is empty"
+          exit 1
+        fi
+        echo "Data processing validation passed"
         
     - name: Upload processed data
       uses: actions/upload-artifact@v4
@@ -52,12 +65,13 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
       
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v5
       with:
-        python-version: '3.11.9'
+        python-version: '3.10'
+        cache: 'pip'
         
     - name: Install dependencies
       run: |
@@ -77,14 +91,41 @@ jobs:
         
     - name: Wait for MLflow to start
       run: |
-        for i in {1..10}; do
-          curl -f http://localhost:5000/health || sleep 5;
+        echo "Waiting for MLflow to be ready..."
+        for i in {1..30}; do
+          if curl -f http://localhost:5000/health 2>/dev/null; then
+            echo "MLflow is ready!"
+            break
+          fi
+          if [ $i -eq 30 ]; then
+            echo "MLflow failed to start after 150 seconds"
+            docker logs mlflow-server
+            exit 1
+          fi
+          echo "Attempt $i/30: MLflow not ready, waiting 5 seconds..."
+          sleep 5
         done
+        
+    - name: Validate config file
+      run: |
+        if [ ! -f "configs/model_config.yaml" ]; then
+          echo "Error: Model config file not found"
+          exit 1
+        fi
+        echo "Config file validation passed"
         
     - name: Train model
       run: |
         mkdir -p models
         python src/models/train_model.py --config configs/model_config.yaml --data data/processed/featured_house_data.csv --models-dir models --mlflow-tracking-uri http://localhost:5000
+        
+    - name: Validate trained model
+      run: |
+        if [ ! -d "models" ] || [ -z "$(ls -A models 2>/dev/null)" ]; then
+          echo "Error: No model files were created"
+          exit 1
+        fi
+        echo "Model training validation passed"
         
     - name: Upload trained model
       uses: actions/upload-artifact@v4
@@ -103,7 +144,7 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
       
     - name: Download trained model
       uses: actions/download-artifact@v4
@@ -116,6 +157,18 @@ jobs:
       with:
         name: preprocessor
         path: models/trained/
+        
+    - name: Validate artifacts
+      run: |
+        if [ ! -d "models" ] || [ -z "$(ls -A models 2>/dev/null)" ]; then
+          echo "Error: No trained model artifacts found"
+          exit 1
+        fi
+        if [ ! -f "models/trained/preprocessor.pkl" ]; then
+          echo "Error: Preprocessor not found"
+          exit 1
+        fi
+        echo "Artifact validation passed"
         
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
