@@ -6,13 +6,15 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
-COPY requirements.txt .
+COPY model_app/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy Python files (exclude README.md)
-COPY *.py .
-# Models will be mounted as volume instead of copying
-#COPY ../models/trained/*.pkl models/trained/
+COPY model_app/*.py .
+
+# Create models directory and copy model files
+RUN mkdir -p models/trained
+COPY models/trained/*.pkl models/trained/
 
 EXPOSE 8000
 
