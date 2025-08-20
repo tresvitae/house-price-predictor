@@ -1,4 +1,4 @@
-name: Streamlit MLOps Pipeline
+name: Streamlit CI
 
 on:
   push:
