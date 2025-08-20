@@ -44,5 +44,3 @@ dist/
 # Ignore processed data
 data/processed/*.csv
 
-# Model configuration
-configs/model_config.yaml
