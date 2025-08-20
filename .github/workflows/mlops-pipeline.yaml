@@ -132,8 +132,8 @@ jobs:
     - name: Build and push Docker image
       uses: docker/build-push-action@v5
       with:
-          context: .
-          file: ./Dockerfile
+          context: ./model_app
+          file: ./model_app/Dockerfile
           push: true
           tags: docker.io/${{ vars.DOCKERHUB_USERNAME }}/house-price-model:latest
           platforms: linux/amd64,linux/arm64
